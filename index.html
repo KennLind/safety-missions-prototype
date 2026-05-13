@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>LEGO Play - Safety Missions Prototype</title>
+    <link rel="icon" href="./favicon.ico" />
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        height: 100%;
+        overflow: hidden;
+        background: #1a1a2e;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+
+      /* Password Gate */
+      #password-gate {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: linear-gradient(135deg, #00A3DA 0%, #0077B6 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+      }
+      #password-gate.hidden { display: none; }
+      .gate-box {
+        background: white;
+        border-radius: 24px;
+        padding: 40px 32px;
+        max-width: 360px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      }
+      .gate-emoji { font-size: 48px; margin-bottom: 16px; }
+      .gate-title { font-size: 22px; font-weight: 800; color: #1A1A1A; margin-bottom: 8px; }
+      .gate-subtitle { font-size: 14px; color: #666; margin-bottom: 24px; }
+      .gate-input {
+        width: 100%; padding: 14px 16px;
+        border: 2px solid #E0E0E0; border-radius: 12px;
+        font-size: 16px; outline: none;
+        transition: border-color 0.2s; box-sizing: border-box;
+      }
+      .gate-input:focus { border-color: #00A3DA; }
+      .gate-input.error { border-color: #DD1A22; animation: shake 0.4s ease; }
+      .gate-button {
+        width: 100%; padding: 14px;
+        background: #00A3DA; color: white; border: none;
+        border-radius: 12px; font-size: 16px; font-weight: 700;
+        cursor: pointer; margin-top: 12px; transition: background 0.2s;
+      }
+      .gate-button:hover { background: #0088B8; }
+      .gate-error { color: #DD1A22; font-size: 13px; margin-top: 8px; min-height: 20px; }
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-8px); }
+        75% { transform: translateX(8px); }
+      }
+
+      /* Phone Frame */
+      #phone-wrapper {
+        width: 100%; height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #phone-frame {
+        position: relative;
+        width: 390px;
+        height: 844px;
+        max-height: 90vh;
+        max-width: calc(90vh * 0.462);
+        border-radius: 54px;
+        background: #000;
+        padding: 14px;
+        box-shadow:
+          0 0 0 2px #333,
+          0 0 0 5px #1a1a1a,
+          0 40px 80px rgba(0,0,0,0.5),
+          inset 0 0 4px rgba(255,255,255,0.05);
+        flex-shrink: 0;
+      }
+      /* Power button */
+      #phone-frame::after {
+        content: '';
+        position: absolute;
+        right: -5px; top: 160px;
+        width: 5px; height: 80px;
+        background: #2a2a2a;
+        border-radius: 0 3px 3px 0;
+      }
+      /* Volume buttons */
+      .vol-btn {
+        position: absolute; left: -5px; width: 5px;
+        background: #2a2a2a; border-radius: 3px 0 0 3px;
+      }
+      .vol-1 { top: 120px; height: 32px; }
+      .vol-2 { top: 165px; height: 56px; }
+      .vol-3 { top: 232px; height: 56px; }
+
+      /* Screen */
+      #phone-screen {
+        width: 100%; height: 100%;
+        border-radius: 40px;
+        overflow: hidden;
+        background: #F8F9FA;
+      }
+      #phone-screen iframe {
+        width: 100%; height: 100%;
+        border: none;
+      }
+
+      /* Mobile: go full screen, no frame */
+      @media (max-width: 500px) {
+        body { background: #F8F9FA; }
+        #phone-frame {
+          width: 100%; height: 100%;
+          max-height: 100%; max-width: 100%;
+          border-radius: 0; padding: 0;
+          box-shadow: none; background: none;
+        }
+        #phone-frame::after, .vol-btn { display: none; }
+        #phone-screen { border-radius: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Password Gate -->
+    <div id="password-gate">
+      <div class="gate-box">
+        <div class="gate-emoji">🔒</div>
+        <div class="gate-title">Safety Missions Prototype</div>
+        <div class="gate-subtitle">Enter the password to access this prototype</div>
+        <form id="gate-form" onsubmit="return checkPassword(event)">
+          <input id="gate-password" class="gate-input" type="password" placeholder="Enter password" autocomplete="off" />
+          <button type="submit" class="gate-button">Enter</button>
+          <div id="gate-error" class="gate-error"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Phone Frame with iframe -->
+    <div id="phone-wrapper">
+      <div id="phone-frame">
+        <div class="vol-btn vol-1"></div>
+        <div class="vol-btn vol-2"></div>
+        <div class="vol-btn vol-3"></div>
+        <div id="phone-screen">
+          <iframe src="./app.html" title="Safety Missions Prototype"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      async function hashPassword(password) {
+        var encoder = new TextEncoder();
+        var data = encoder.encode(password);
+        var hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        var hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+      }
+
+      if (sessionStorage.getItem('prototype_auth') === 'true') {
+        document.getElementById('password-gate').classList.add('hidden');
+      }
+
+      var correctHash = '';
+      hashPassword('kids2026').then(function(h) { correctHash = h; });
+
+      async function checkPassword(e) {
+        e.preventDefault();
+        var input = document.getElementById('gate-password');
+        var error = document.getElementById('gate-error');
+        var inputHash = await hashPassword(input.value);
+
+        if (correctHash && inputHash === correctHash) {
+          sessionStorage.setItem('prototype_auth', 'true');
+          document.getElementById('password-gate').classList.add('hidden');
+        } else {
+          input.classList.add('error');
+          error.textContent = 'Incorrect password. Please try again.';
+          setTimeout(function() { input.classList.remove('error'); }, 400);
+        }
+        return false;
+      }
+    </script>
+  </body>
+</html>
